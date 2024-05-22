@@ -21,17 +21,9 @@ resource "aws_key_pair" "my_key_pair" {
   public_key = tls_private_key.pk.public_key_openssh
 }
 
-resource "aws_security_group" "my_security_group" {
-  name        = "my_server_sg"
-  description = "Allow SSH inbound and all outbound traffic"
-
-  ingress {
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
+resource "aws_security_group" "sg_outbound" {
+  name        = "all-outbound"
+  description = "Allow all outbound traffic"
 
   egress {
     from_port   = 0
@@ -41,11 +33,23 @@ resource "aws_security_group" "my_security_group" {
   }
 }
 
+resource "aws_security_group" "sg_ssh" {
+  name        = "ssh-inbound"
+  description = "Allow SSH inbound traffic"
+
+  ingress {
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
 resource "aws_instance" "my_server" {
   ami               = "ami-0c7217cdde317cfec"
   instance_type     = "t2.micro"
   key_name          = aws_key_pair.my_key_pair.key_name
-  security_groups   = [aws_security_group.my_security_group.name]
+  security_groups   = [aws_security_group.sg_ssh.name, aws_security_group.sg_outbound.name]
 }
 
 output "instance_public_ip" {
