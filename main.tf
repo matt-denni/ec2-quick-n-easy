@@ -4,7 +4,7 @@ terraform {
       source  = "hashicorp/aws"
     }
   }
-  required_version = ">= 1.3.8"
+  required_version = ">= 1.8.3"
 }
 
 provider "aws" {
@@ -45,11 +45,33 @@ resource "aws_security_group" "sg_ssh" {
   }
 }
 
+resource "aws_security_group" "sg_http" {
+  name        = "http-inbound"
+  description = "Allow HTTP inbound traffic"
+
+  ingress {
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
 resource "aws_instance" "my_server" {
   ami               = "ami-0c7217cdde317cfec"
   instance_type     = "t2.micro"
   key_name          = aws_key_pair.my_key_pair.key_name
-  security_groups   = [aws_security_group.sg_ssh.name, aws_security_group.sg_outbound.name]
+  security_groups   = [aws_security_group.sg_ssh.name, aws_security_group.sg_outbound.name, aws_security_group.sg_http.name]
+  user_data = <<-EOF
+              #!/bin/bash
+              curl -fsSL https://get.docker.com -o get-docker.sh
+              chmod +x get-docker.sh
+              ./get-docker.sh
+              systemctl start docker
+              systemctl enable docker
+              usermod -aG docker ubuntu
+              docker run -d -p 80:80 nginx
+              EOF
 }
 
 output "instance_public_ip" {
